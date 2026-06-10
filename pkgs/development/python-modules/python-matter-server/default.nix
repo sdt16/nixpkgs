@@ -133,6 +133,10 @@ buildPythonPackage rec {
     ];
   };
 
+  makeWrapperArgs = [
+    "--prefix PATH : ${lib.makeBinPath [ home-assistant-chip-wheels.otaProvider ]}"
+  ];
+
   nativeCheckInputs = [
     aioresponses
     pytest-aiohttp
