@@ -66,6 +66,11 @@ stdenv.mkDerivation rec {
   pname = "home-assistant-chip-wheels";
   version = "2025.7.0";
 
+  outputs = [
+    "out"
+    "otaProvider"
+  ];
+
   src = fetchFromGitHub {
     owner = "home-assistant-libs";
     repo = "chip-wheels";
@@ -279,10 +284,22 @@ stdenv.mkDerivation rec {
 
   ninjaFlags = [ "chip-repl" ];
 
+  postBuild = ''
+    # The gn setup hook cd'd to out/Release/; go back to the connectedhomeip root.
+    # Build the chip-ota-provider-app binary using a separate GN configuration.
+    # The example's .gn sets the GN source root to examples/ota-provider-app/linux/,
+    # with third_party/connectedhomeip symlinking back to the SDK root.
+    gn gen --root=../../examples/ota-provider-app/linux/ out-ota \
+      --args='chip_crypto="openssl" chip_config_network_layer_ble=false chip_enable_wifi=false chip_enable_openthread=false chip_mdns="minimal" chip_minmdns_default_policy="libnl" custom_toolchain="custom" target_cc="${stdenv.cc.targetPrefix}cc" target_cxx="${stdenv.cc.targetPrefix}c++" target_ar="${stdenv.cc.targetPrefix}ar" enable_rtti=true chip_config_memory_debug_checks=false chip_config_memory_debug_dmalloc=false'
+    ninja -C out-ota chip-ota-provider-app
+  '';
+
   installPhase = ''
     runHook preInstall
 
     cp -r controller/python $out
+
+    install -Dm755 out-ota/chip-ota-provider-app $otaProvider/bin/chip-ota-provider-app
 
     runHook postInstall
   '';
